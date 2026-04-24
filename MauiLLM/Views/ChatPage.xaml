@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:models="clr-namespace:MauiLLM.Models"
+             xmlns:viewModels="clr-namespace:MauiLLM.ViewModels"
+             x:Class="MauiLLM.Views.ChatPage"
+             x:DataType="viewModels:ChatViewModel"
+             Title="Phi-3 Local Chat">
+
+    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto"
+          RowSpacing="12"
+          Padding="16">
+
+        <Border StrokeThickness="0"
+                Background="#111827"
+                Padding="16">
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Phi-3 mini on-device demo"
+                       FontSize="26"
+                       FontFamily="OpenSansSemibold"
+                       TextColor="White" />
+                <Label Text="This chat uses Microsoft Phi-3 locally through ONNX Runtime GenAI. No network calls, no API key."
+                       TextColor="#D1D5DB"
+                       LineBreakMode="WordWrap" />
+            </VerticalStackLayout>
+        </Border>
+
+        <Border Grid.Row="1"
+                StrokeThickness="0"
+                Background="#F8FAFC"
+                MaximumHeightRequest="170"
+                Padding="14">
+            <Grid ColumnDefinitions="*,Auto"
+                  ColumnSpacing="12">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="{Binding StatusText}"
+                           FontFamily="OpenSansSemibold"
+                           TextColor="#0F172A"
+                           MaxLines="4"
+                           LineBreakMode="TailTruncation" />
+                    <Label Text="{Binding ModelPathHelpText}"
+                           FontSize="12"
+                           TextColor="#475569"
+                           MaxLines="2"
+                           LineBreakMode="WordWrap" />
+                </VerticalStackLayout>
+
+                <VerticalStackLayout Grid.Column="1"
+                                     Spacing="8"
+                                     HorizontalOptions="End"
+                                     VerticalOptions="Center">
+                    <ActivityIndicator IsRunning="{Binding IsBusy}"
+                                       IsVisible="{Binding IsBusy}" />
+                    <ActivityIndicator IsRunning="{Binding IsDownloading}"
+                                       IsVisible="{Binding IsDownloading}" />
+                    <Button Text="Download model"
+                            Command="{Binding DownloadModelCommand}"
+                            IsVisible="{Binding CanDownloadModel}"
+                            Padding="12,8" />
+                    <Button Text="Reload"
+                            Command="{Binding InitializeCommand}"
+                            Padding="12,8" />
+                </VerticalStackLayout>
+            </Grid>
+        </Border>
+
+        <VerticalStackLayout Grid.Row="2"
+                             IsVisible="{Binding IsDownloadSectionVisible}"
+                             MaximumHeightRequest="72"
+                             Spacing="8">
+            <ProgressBar Progress="{Binding DownloadProgress}" />
+            <Label Text="{Binding DownloadStatusText}"
+                   FontSize="12"
+                   TextColor="#CBD5E1"
+                   MaxLines="2"
+                   LineBreakMode="TailTruncation" />
+        </VerticalStackLayout>
+
+        <CollectionView x:Name="ChatMessagesView"
+                        Grid.Row="3"
+                        ItemsSource="{Binding Messages}"
+                        ItemsUpdatingScrollMode="KeepLastItemInView"
+                        SelectionMode="None">
+            <CollectionView.EmptyView>
+                <VerticalStackLayout Padding="24"
+                                     Spacing="10">
+                    <Label Text="The chat will be ready as soon as the model loads."
+                           FontFamily="OpenSansSemibold"
+                           HorizontalTextAlignment="Center" />
+                    <Label Text="Try: Explain dependency injection in .NET MAUI."
+                           HorizontalTextAlignment="Center"
+                           TextColor="#64748B" />
+                </VerticalStackLayout>
+            </CollectionView.EmptyView>
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="models:ChatMessage">
+                    <Border Margin="0,4"
+                            Padding="12"
+                            StrokeThickness="0"
+                            Background="{Binding BackgroundColor}"
+                            HorizontalOptions="{Binding BubbleAlignment}">
+                        <Label Text="{Binding Text}"
+                               TextColor="{Binding TextColor}"
+                               LineBreakMode="WordWrap" />
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <Grid Grid.Row="4"
+              ColumnDefinitions="*,Auto"
+              ColumnSpacing="12">
+            <Border StrokeThickness="0"
+                    Background="#E5E7EB"
+                    Padding="12,6">
+                <Entry Text="{Binding UserInput}"
+                       Placeholder="Ask Phi-3 something..."
+                       ClearButtonVisibility="WhileEditing"
+                       ReturnType="Send"
+                       ReturnCommand="{Binding SendCommand}"
+                       IsEnabled="{Binding IsInputEnabled}" />
+            </Border>
+
+            <Button Grid.Column="1"
+                    Text="Send"
+                    Command="{Binding SendCommand}"
+                    IsEnabled="{Binding IsInputEnabled}"
+                    VerticalOptions="Fill" />
+        </Grid>
+    </Grid>
+</ContentPage>
