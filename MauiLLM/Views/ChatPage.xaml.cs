@@ -1,6 +1,5 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
-using Microsoft.Maui.ApplicationModel;
 using MauiLLM.Models;
 using MauiLLM.ViewModels;
 
@@ -10,6 +9,7 @@ public partial class ChatPage : ContentPage
 {
     private readonly ChatViewModel _viewModel;
     private bool _hasInitialized;
+    private int _scrollRequestId;
 
     public ChatPage(ChatViewModel viewModel)
     {
@@ -46,28 +46,37 @@ public partial class ChatPage : ContentPage
             item.PropertyChanged += OnChatMessagePropertyChanged;
         }
 
-        ScrollToBottom();
+        RequestScrollToBottom();
     }
 
     private void OnChatMessagePropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(ChatMessage.Text))
         {
-            ScrollToBottom();
+            RequestScrollToBottom();
         }
     }
 
-    private void ScrollToBottom()
+    private void RequestScrollToBottom()
     {
         if (_viewModel.Messages.Count == 0)
         {
             return;
         }
 
-        MainThread.BeginInvokeOnMainThread(() =>
+        var requestId = ++_scrollRequestId;
+
+        ChatMessagesView.Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(50), () =>
         {
-            var lastItem = _viewModel.Messages[^1];
-            ChatMessagesView.ScrollTo(lastItem, position: ScrollToPosition.End, animate: true);
+            if (requestId != _scrollRequestId || _viewModel.Messages.Count == 0 || ChatMessagesView.Handler is null)
+            {
+                return;
+            }
+
+            ChatMessagesView.ScrollTo(
+                _viewModel.Messages.Count - 1,
+                position: ScrollToPosition.End,
+                animate: false);
         });
     }
 }

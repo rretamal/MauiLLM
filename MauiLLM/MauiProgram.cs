@@ -19,6 +19,7 @@ namespace MauiLLM
                 });
 
             builder.Services.AddSingleton<LocalLlmService>();
+            builder.Services.AddSingleton<ModelDownloadService>();
             builder.Services.AddSingleton<ChatViewModel>();
             builder.Services.AddSingleton<ChatPage>();
             builder.Services.AddSingleton<AppShell>();

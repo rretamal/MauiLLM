@@ -10,32 +10,19 @@ Use the mobile-optimized Phi-3 files from:
 
 - `cpu_and_mobile/cpu-int4-rtn-block-32-acc-level-4`
 
-This is the recommended CPU/mobile variant for phones. The app expects the contents of that folder to be present on-device before launch.
+This is the recommended CPU/mobile variant for phones. The app can download the files on demand, or you can still copy them manually for demos.
 
 ## Android setup
 
 1. Build and install the app on a physical Android device.
-2. The app checks these folders in order:
+2. If the app does not find the model, tap `Download model`.
+3. The model is downloaded to the app-specific external files folder:
+   - `/sdcard/Android/data/com.companyname.mauillm/files/models/phi3-mini`
+4. The largest file is `phi3-mini-4k-instruct-cpu-int4-rtn-block-32-acc-level-4.onnx.data`, roughly 2.72 GB, so use WiFi and keep the app open.
+
+Manual copy is still supported. The app checks these folders, but Android scoped storage may hide files from `Download` even when Windows Explorer shows them:
    - `/sdcard/Download/phi3-mini`
    - `/sdcard/Download/cpu-int4-rtn-block-32-acc-level-4`
    - `/sdcard/phi3-mini`
    - `/sdcard/Android/data/com.companyname.mauillm/files/models/phi3-mini`
    - `/sdcard/Android/data/com.companyname.mauillm/files/models/cpu-int4-rtn-block-32-acc-level-4`
-3. Start the app and wait for the model to load.
-
-Recommended `adb` flow:
-
-```bash
-adb shell mkdir -p /sdcard/Download/phi3-mini
-adb push cpu_and_mobile/cpu-int4-rtn-block-32-acc-level-4/. /sdcard/Download/phi3-mini/
-```
-
-## Notes for the article
-
-- The correct package reference is:
-
-```xml
-<PackageReference Include="Microsoft.ML.OnnxRuntimeGenAI" Version="0.13.1" />
-```
-
-- The original "download manager" idea is intentionally out of scope for this demo. This project assumes the model is already copied to the device so the article can stay focused on local inference, prompt formatting, and UI streaming.

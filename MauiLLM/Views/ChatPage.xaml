@@ -7,7 +7,7 @@
              x:DataType="viewModels:ChatViewModel"
              Title="Phi-3 Local Chat">
 
-    <Grid RowDefinitions="Auto,Auto,*,Auto"
+    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto"
           RowSpacing="12"
           Padding="16">
 
@@ -28,16 +28,20 @@
         <Border Grid.Row="1"
                 StrokeThickness="0"
                 Background="#F8FAFC"
+                MaximumHeightRequest="170"
                 Padding="14">
             <Grid ColumnDefinitions="*,Auto"
                   ColumnSpacing="12">
                 <VerticalStackLayout Spacing="4">
                     <Label Text="{Binding StatusText}"
                            FontFamily="OpenSansSemibold"
-                           TextColor="#0F172A" />
+                           TextColor="#0F172A"
+                           MaxLines="4"
+                           LineBreakMode="TailTruncation" />
                     <Label Text="{Binding ModelPathHelpText}"
                            FontSize="12"
                            TextColor="#475569"
+                           MaxLines="2"
                            LineBreakMode="WordWrap" />
                 </VerticalStackLayout>
 
@@ -47,6 +51,12 @@
                                      VerticalOptions="Center">
                     <ActivityIndicator IsRunning="{Binding IsBusy}"
                                        IsVisible="{Binding IsBusy}" />
+                    <ActivityIndicator IsRunning="{Binding IsDownloading}"
+                                       IsVisible="{Binding IsDownloading}" />
+                    <Button Text="Download model"
+                            Command="{Binding DownloadModelCommand}"
+                            IsVisible="{Binding CanDownloadModel}"
+                            Padding="12,8" />
                     <Button Text="Reload"
                             Command="{Binding InitializeCommand}"
                             Padding="12,8" />
@@ -54,8 +64,20 @@
             </Grid>
         </Border>
 
+        <VerticalStackLayout Grid.Row="2"
+                             IsVisible="{Binding IsDownloadSectionVisible}"
+                             MaximumHeightRequest="72"
+                             Spacing="8">
+            <ProgressBar Progress="{Binding DownloadProgress}" />
+            <Label Text="{Binding DownloadStatusText}"
+                   FontSize="12"
+                   TextColor="#CBD5E1"
+                   MaxLines="2"
+                   LineBreakMode="TailTruncation" />
+        </VerticalStackLayout>
+
         <CollectionView x:Name="ChatMessagesView"
-                        Grid.Row="2"
+                        Grid.Row="3"
                         ItemsSource="{Binding Messages}"
                         ItemsUpdatingScrollMode="KeepLastItemInView"
                         SelectionMode="None">
@@ -86,7 +108,7 @@
             </CollectionView.ItemTemplate>
         </CollectionView>
 
-        <Grid Grid.Row="3"
+        <Grid Grid.Row="4"
               ColumnDefinitions="*,Auto"
               ColumnSpacing="12">
             <Border StrokeThickness="0"

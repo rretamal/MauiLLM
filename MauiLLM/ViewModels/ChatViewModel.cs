@@ -13,22 +13,31 @@ public sealed class ChatViewModel : INotifyPropertyChanged
     private const string ReadyStatus = "Ready. Phi-3 is running 100% on this device.";
 
     private readonly LocalLlmService _llmService;
+    private readonly ModelDownloadService _modelDownloadService;
     private string _userInput = string.Empty;
     private string _statusText = "Looking for the Phi-3 model on device storage...";
     private string _modelPathHelpText = string.Empty;
+    private string _downloadStatusText = string.Empty;
     private bool _isBusy;
     private bool _isReady;
+    private bool _isDownloading;
+    private bool _canDownloadModel;
+    private double _downloadProgress;
 
-    public ChatViewModel(LocalLlmService llmService)
+    public ChatViewModel(LocalLlmService llmService, ModelDownloadService modelDownloadService)
     {
         _llmService = llmService;
-        InitializeCommand = new AsyncCommand(InitializeAsync, () => !IsBusy);
+        _modelDownloadService = modelDownloadService;
+        InitializeCommand = new AsyncCommand(InitializeAsync, () => !IsBusy && !IsDownloading);
+        DownloadModelCommand = new AsyncCommand(DownloadModelAsync, () => CanDownloadModel);
         SendCommand = new AsyncCommand(SendAsync, CanSend);
     }
 
     public ObservableCollection<ChatMessage> Messages { get; } = new();
 
     public ICommand InitializeCommand { get; }
+
+    public ICommand DownloadModelCommand { get; }
 
     public ICommand SendCommand { get; }
 
@@ -56,6 +65,12 @@ public sealed class ChatViewModel : INotifyPropertyChanged
         private set => SetProperty(ref _modelPathHelpText, value);
     }
 
+    public string DownloadStatusText
+    {
+        get => _downloadStatusText;
+        private set => SetProperty(ref _downloadStatusText, value);
+    }
+
     public bool IsBusy
     {
         get => _isBusy;
@@ -63,6 +78,7 @@ public sealed class ChatViewModel : INotifyPropertyChanged
         {
             if (SetProperty(ref _isBusy, value))
             {
+                OnPropertyChanged(nameof(IsDownloadSectionVisible));
                 NotifyCommandStateChanged();
             }
         }
@@ -76,25 +92,64 @@ public sealed class ChatViewModel : INotifyPropertyChanged
             if (SetProperty(ref _isReady, value))
             {
                 OnPropertyChanged(nameof(IsInputEnabled));
+                OnPropertyChanged(nameof(IsDownloadSectionVisible));
                 NotifyCommandStateChanged();
             }
         }
     }
 
-    public bool IsInputEnabled => IsReady && !IsBusy;
+    public bool IsDownloading
+    {
+        get => _isDownloading;
+        private set
+        {
+            if (SetProperty(ref _isDownloading, value))
+            {
+                OnPropertyChanged(nameof(IsInputEnabled));
+                OnPropertyChanged(nameof(IsDownloadSectionVisible));
+                NotifyCommandStateChanged();
+            }
+        }
+    }
+
+    public bool CanDownloadModel
+    {
+        get => _canDownloadModel && !IsBusy && !IsDownloading && !IsReady;
+        private set
+        {
+            if (SetProperty(ref _canDownloadModel, value))
+            {
+                OnPropertyChanged(nameof(IsDownloadSectionVisible));
+                NotifyCommandStateChanged();
+            }
+        }
+    }
+
+    public double DownloadProgress
+    {
+        get => _downloadProgress;
+        private set => SetProperty(ref _downloadProgress, value);
+    }
+
+    public bool IsDownloadSectionVisible => !IsReady && (CanDownloadModel || IsDownloading);
+
+    public bool IsInputEnabled => IsReady && !IsBusy && !IsDownloading;
 
     public async Task InitializeAsync()
     {
         ModelPathHelpText =
-            $"Accepted model folders:{Environment.NewLine}{string.Join(Environment.NewLine, ModelPathResolver.GetCandidateModelDirectories().Select(path => $"- {path}"))}";
+            $"Install path: {ModelPathResolver.GetPrimaryInstallDirectory()}";
 
         if (!ModelPathResolver.TryResolveModelDirectory(out var modelDirectory, out var validationError))
         {
             IsReady = false;
-            StatusText = validationError;
+            CanDownloadModel = true;
+            DownloadStatusText = "Model not installed. Download it to continue.";
+            StatusText = BuildCompactMissingModelStatus(validationError);
             return;
         }
 
+        CanDownloadModel = false;
         IsBusy = true;
         try
         {
@@ -111,6 +166,53 @@ public sealed class ChatViewModel : INotifyPropertyChanged
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    public async Task DownloadModelAsync()
+    {
+        if (!CanDownloadModel)
+        {
+            return;
+        }
+
+        IsReady = false;
+        CanDownloadModel = false;
+        IsDownloading = true;
+        DownloadProgress = 0;
+        StatusText = "Downloading Phi-3 model files. Keep the app open.";
+
+        try
+        {
+            var progress = new Progress<ModelDownloadProgress>(UpdateDownloadProgress);
+            var modelDirectory = await _modelDownloadService.DownloadModelAsync(progress);
+
+            StatusText = "Download complete. Loading Phi-3 from local storage.";
+            DownloadProgress = 1;
+
+            if (!ModelPathResolver.TryValidateModelDirectory(modelDirectory, out var validationError))
+            {
+                IsReady = false;
+                CanDownloadModel = true;
+                StatusText = $"Downloaded model is incomplete: {validationError}";
+                return;
+            }
+
+            await _llmService.LoadModelAsync(modelDirectory);
+            IsReady = true;
+            DownloadStatusText = string.Empty;
+            StatusText = ReadyStatus;
+        }
+        catch (Exception ex)
+        {
+            IsReady = false;
+            CanDownloadModel = true;
+            DownloadStatusText = "Download failed. Check your connection and try again.";
+            StatusText = $"Download failed: {ex.Message}";
+        }
+        finally
+        {
+            IsDownloading = false;
         }
     }
 
@@ -162,7 +264,35 @@ public sealed class ChatViewModel : INotifyPropertyChanged
 
     private bool CanSend()
     {
-        return IsReady && !IsBusy && !string.IsNullOrWhiteSpace(UserInput);
+        return IsReady && !IsBusy && !IsDownloading && !string.IsNullOrWhiteSpace(UserInput);
+    }
+
+    private void UpdateDownloadProgress(ModelDownloadProgress progress)
+    {
+        DownloadProgress = progress.OverallProgress;
+
+        var filePercentText = progress.FileBytesTotal is > 0
+            ? $" ({(double)progress.FileBytesDownloaded / progress.FileBytesTotal.Value:P0})"
+            : string.Empty;
+
+        DownloadStatusText =
+            $"Downloading {progress.FileName}{filePercentText}{Environment.NewLine}" +
+            $"File {progress.FileIndex} of {progress.FileCount}. Overall {progress.OverallProgress:P0}.";
+    }
+
+    private static string BuildCompactMissingModelStatus(string validationError)
+    {
+        if (validationError.Contains("Android did not expose any files", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Model not installed. Android cannot read the files from Downloads, so use the app download option.";
+        }
+
+        if (validationError.Contains("missing", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Model not installed or incomplete. Download it from the app to continue.";
+        }
+
+        return "Model not installed. Download it from the app to continue.";
     }
 
     private bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string? propertyName = null)
@@ -185,6 +315,11 @@ public sealed class ChatViewModel : INotifyPropertyChanged
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsInputEnabled)));
         }
+
+        if (propertyName == nameof(IsBusy) || propertyName == nameof(IsDownloading) || propertyName == nameof(IsReady))
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CanDownloadModel)));
+        }
     }
 
     private void NotifyCommandStateChanged()
@@ -192,6 +327,11 @@ public sealed class ChatViewModel : INotifyPropertyChanged
         if (InitializeCommand is AsyncCommand initializeCommand)
         {
             initializeCommand.NotifyCanExecuteChanged();
+        }
+
+        if (DownloadModelCommand is AsyncCommand downloadModelCommand)
+        {
+            downloadModelCommand.NotifyCanExecuteChanged();
         }
 
         if (SendCommand is AsyncCommand sendCommand)

@@ -72,7 +72,10 @@ obj/Debug/net10.0-android/
 Platforms/Android/
  MainActivity.cs
  MainApplication.cs
-Services/LocalLlmService.cs
+Services/
+ LocalLlmService.cs
+ ModelDownloadProgress.cs
+ ModelDownloadService.cs
 ViewModels/ChatViewModel.cs
 Views/ChatPage.xaml.cs
 
@@ -470,7 +473,10 @@ obj/Debug/net10.0-ios/iossimulator-arm64/
 Platforms/iOS/
  AppDelegate.cs
  Program.cs
-Services/LocalLlmService.cs
+Services/
+ LocalLlmService.cs
+ ModelDownloadProgress.cs
+ ModelDownloadService.cs
 ViewModels/ChatViewModel.cs
 Views/ChatPage.xaml.cs
 
@@ -768,7 +774,10 @@ obj/Debug/net10.0-maccatalyst/maccatalyst-arm64/
 Platforms/MacCatalyst/
  AppDelegate.cs
  Program.cs
-Services/LocalLlmService.cs
+Services/
+ LocalLlmService.cs
+ ModelDownloadProgress.cs
+ ModelDownloadService.cs
 ViewModels/ChatViewModel.cs
 Views/ChatPage.xaml.cs
 
